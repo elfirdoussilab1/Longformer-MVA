@@ -3,7 +3,7 @@ import torch.nn as nn
 from utils import get_diagonal
 
 class SelfAttentionBlock(nn.Module):
-    def __init__(self, embed_dim, Q_dim, V_dim, window_size):
+    def __init__(self, embed_dim, Q_dim=64, V_dim=64, window_size=3):
         super(SelfAttentionBlock, self).__init__()
         self.matrix_Q = nn.Linear(embed_dim, Q_dim)
         self.matrix_K = nn.Linear(embed_dim, Q_dim)
@@ -13,11 +13,11 @@ class SelfAttentionBlock(nn.Module):
         Q = self.matrix_Q(x)
         K = self.matrix_K(x)
         V = self.matrix_V(x)
-
+        
         return torch.softmax(Q@K.transpose(1,2), dim=2)@V
     
 class MultiHeadSelfAttention(nn.Module):
-    def __init__(self, embed_dim, Q_dim, V_dim, n_head):
+    def __init__(self, embed_dim, Q_dim=64, V_dim=64, n_head=64):
         super(MultiHeadSelfAttention, self).__init__()
         assert embed_dim%n_head == 0, f'Cannot divide vector x (dim = {embed_dim}) into n_head={n_head}'
 
@@ -53,7 +53,7 @@ class MultiHeadSelfAttention(nn.Module):
 
 class SliddingWindowAttention(nn.Module):
     """Slidding window self-attention."""
-    def __init__(self, embed_dim, Q_dim, V_dim, window_size):
+    def __init__(self, embed_dim, Q_dim=64, V_dim=64, window_size=3):
         super(SliddingWindowAttention, self).__init__()
         self.window_size = window_size
         self.matrix_Q = nn.Linear(embed_dim, Q_dim)
@@ -78,7 +78,7 @@ class SliddingWindowAttention(nn.Module):
 
 class MultiHeadSliddingWindowAttention(nn.Module):
     """Slidding window multi-head self-attention."""
-    def __init__(self, embed_dim, Q_dim, V_dim, n_head, window_size):
+    def __init__(self, embed_dim, Q_dim=64, V_dim=64, n_head=8, window_size=3):
         super(MultiHeadSliddingWindowAttention, self).__init__()
         assert embed_dim%n_head == 0, f'Cannot divide vector x (dim = {embed_dim}) into n_head={n_head}'
 
