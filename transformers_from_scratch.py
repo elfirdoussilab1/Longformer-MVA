@@ -53,8 +53,9 @@ class Transformer(nn.Module):
         self.fc = nn.Linear(embed_dim, vocab_size)  # Output layer for token prediction
 
     def forward(self, x):
+        device = next(self.parameters()).device  # Dynamically get the model's device
         batch_size, seq_len = x.shape
-        pos = torch.arange(seq_len, device=x.device).unsqueeze(0).expand(batch_size, -1)
+        pos = torch.arange(seq_len, device=device).unsqueeze(0).expand(batch_size, -1)
 
         # Token + Positional embeddings
         x = self.embedding(x) + self.position_embedding(pos)

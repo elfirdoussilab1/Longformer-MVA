@@ -3,7 +3,7 @@ import torch.nn as nn
 from utils import get_diagonal
 
 class SelfAttentionBlock(nn.Module):
-    def __init__(self, embed_dim, Q_dim=64, V_dim=64, window_size=3):
+    def __init__(self, embed_dim, Q_dim=64, V_dim=64):
         super(SelfAttentionBlock, self).__init__()
         self.matrix_Q = nn.Linear(embed_dim, Q_dim)
         self.matrix_K = nn.Linear(embed_dim, Q_dim)
@@ -61,12 +61,13 @@ class SliddingWindowAttention(nn.Module):
         self.matrix_V = nn.Linear(embed_dim, V_dim)
 
     def forward(self, x):
+        device = next(self.parameters()).device  # Retrieve device from model parameters
         n_batch, n_seq, embed_dim = x.shape
         Q = self.matrix_Q(x) # Q.shape = (n_batch, n_seq, Q_dim)
         K = self.matrix_K(x)
         V = self.matrix_V(x)
 
-        columns = torch.zeros((n_batch,n_seq,n_seq))
+        columns = torch.zeros((n_batch,n_seq,n_seq), device=device)
 
         for i,di in enumerate(range(-abs(self.window_size//2), self.window_size//2+1)):
             indices_i, indices_j = get_diagonal(n_seq, di)
@@ -82,7 +83,7 @@ class MultiHeadSliddingWindowAttention(nn.Module):
         super(MultiHeadSliddingWindowAttention, self).__init__()
         assert embed_dim%n_head == 0, f'Cannot divide vector x (dim = {embed_dim}) into n_head={n_head}'
 
-        self.window_size= window_size
+        self.window_size = window_size
         self.n_head = n_head
         self.Q_dim = Q_dim 
         self.V_dim = V_dim
@@ -94,6 +95,7 @@ class MultiHeadSliddingWindowAttention(nn.Module):
         self.linear_out = nn.Linear(n_head*V_dim, embed_dim)
 
     def forward(self, x):
+        device = next(self.parameters()).device  # Retrieve device from model parameters
         # x.shape = (n_batch, n_seq, embed_dim)
         n_batch, n_seq, embed_dim = x.shape
         Q = self.matrix_Q(x) # Q.shape = (n_batch, n_seq, n_head*Q_dim)
@@ -104,8 +106,7 @@ class MultiHeadSliddingWindowAttention(nn.Module):
         K = K.view((n_batch, n_seq, self.n_head, self.Q_dim)).transpose(1,2) #(n_batch, n_head, n_seq, Q_dim)
         V = V.view((n_batch, n_seq, self.n_head, self.V_dim)).transpose(1,2) #(n_batch, n_head, n_seq, V_dim)
 
-
-        columns = torch.zeros((n_batch,self.n_head,n_seq,n_seq))
+        columns = torch.zeros((n_batch,self.n_head,n_seq,n_seq), device=device)
 
         for i,di in enumerate(range(-abs(self.window_size//2), self.window_size//2+1)):
             indices_i, indices_j = get_diagonal(n_seq, di)
