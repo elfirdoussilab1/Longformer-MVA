@@ -17,9 +17,9 @@ class SliddingWindowAttention(nn.Module):
         Q = self.matrix_Q(x) # Q.shape = (n_batch, n_seq, Q_dim)
         K = self.matrix_K(x)
         V = self.matrix_V(x)
-
+        Q_dim = Q.shape[-1]
         #columns = torch.zeros((n_batch,n_seq,n_seq), device=device)
-        attentions = torch.zeros((n_batch, n_seq, embed_dim), device= device)
+        attentions = torch.zeros((n_batch, n_seq, Q_dim), device= device)
 
         for i in range(n_seq): # iterate over all tokens
             indices = np.arange(np.maximum(i - self.window_size // 2, 0), np.minimum(i + self.window_size // 2, n_seq - 1) + 1)
