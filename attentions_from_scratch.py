@@ -72,6 +72,7 @@ class SliddingWindowAttention(nn.Module):
         for i,di in enumerate(range(-abs(self.window_size//2), self.window_size//2+1)):
             indices_i, indices_j = get_diagonal(n_seq, di)
             c = torch.einsum("b i d, b i d -> b i", Q[:,indices_i,:], K[:,indices_j,:])
+            c /= embed_dim**0.5
             columns[:,indices_i,i] = c
 
         return torch.softmax(columns, dim=2)@V
@@ -111,6 +112,7 @@ class MultiHeadSliddingWindowAttention(nn.Module):
         for i,di in enumerate(range(-abs(self.window_size//2), self.window_size//2+1)):
             indices_i, indices_j = get_diagonal(n_seq, di)
             c = torch.einsum("a b i d, a b i d -> a b i", Q[:,:,indices_i,:], K[:,:,indices_j,:])
+            c /= embed_dim**0.5
             columns[:,:,indices_i,i] = c
 
         columns = torch.softmax(columns, dim=-1) # (n_batch, n_head, n_seq, n_seq)
@@ -146,6 +148,7 @@ class DilatedSliddingWindowAttention(nn.Module):
             dilated_di = di * self.dilation  # Apply dilation
             indices_i, indices_j = get_diagonal(n_seq, dilated_di)
             c = torch.einsum("b i d, b i d -> b i", Q[:, indices_i, :], K[:, indices_j, :])
+            c /= embed_dim**0.5
             columns[:, indices_i, indices_j] = c
         
         return torch.softmax(columns, dim=2) @ V
@@ -182,6 +185,7 @@ class MultiHeadDilatedSliddingWindowAttention(nn.Module):
             dilated_di = di * self.dilation  # Apply dilation
             indices_i, indices_j = get_diagonal(n_seq, dilated_di)  # Get valid diagonal indices
             c = torch.einsum("a b i d, a b i d -> a b i", Q[:, :, indices_i, :], K[:, :, indices_j, :]) # Reduction of time complexity to O(n)
+            c /= embed_dim**0.5
             columns[:, :, indices_i, indices_j] = c
 
         
