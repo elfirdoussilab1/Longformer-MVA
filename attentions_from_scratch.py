@@ -73,7 +73,7 @@ class SliddingWindowAttention(nn.Module):
             indices_i, indices_j = get_diagonal(n_seq, di)
             c = torch.einsum("b i d, b i d -> b i", Q[:,indices_i,:], K[:,indices_j,:])
             c /= embed_dim**0.5
-            columns[:,indices_i,i] = c
+            columns[:,indices_i,indices_j] = c
 
         return torch.softmax(columns, dim=2)@V
     
