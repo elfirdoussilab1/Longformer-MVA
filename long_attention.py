@@ -3,10 +3,12 @@ import torch.nn as nn
 import numpy as np
 import torch.nn.functional as F
 
-# Attentions Head
+# Here we implement the SlidingWindow LongFormer from scratch
+
+# Attention Head
 class LongAttentionHead(nn.Module):
     """Slidding window self-attention."""
-    def __init__(self, embed_dim, head_size, window_size=3):
+    def __init__(self, embed_dim, head_size, window_size):
         super(LongAttentionHead, self).__init__()
         self.window_size = window_size
         self.matrix_Q = nn.Linear(embed_dim, head_size)
@@ -20,7 +22,6 @@ class LongAttentionHead(nn.Module):
         K = self.matrix_K(x)
         V = self.matrix_V(x)
         head_dim = Q.shape[-1]
-        #columns = torch.zeros((n_batch,n_seq,n_seq), device=device)
         attentions = torch.zeros((n_batch, n_seq, head_dim), device= device)
 
         for i in range(n_seq): # iterate over all tokens
@@ -132,23 +133,23 @@ class MLP(nn.Module):
 class Block(nn.Module):
     """ Transformer block: communication followed by computation """
 
-    def __init__(self, embed_dim, num_heads):
+    def __init__(self, embed_dim, num_heads, window_size):
         super().__init__()
         head_size = embed_dim // num_heads
-        self.attn = MultiHeadLongAttention(num_heads, head_size)
+        self.attn = MultiHeadLongAttention(num_heads, head_size, window_size)
         self.ffwd = MLP(embed_dim)
         self.ln1 = nn.LayerNorm(embed_dim)
         self.ln2 = nn.LayerNorm(embed_dim)
     
     def forward(self, x):
-        x = x + self.sa(self.ln1(x)) # Residual connection & Norm
+        x = x + self.attn(self.ln1(x)) # Residual connection & Norm
         x = x + self.ffwd(self.ln2(x))
         return x
 
 # LongFormer Model
 class LongFormer(nn.Module):
 
-    def __init__(self, vocab_size, embed_dim, num_heads, seq_length, positional_encoder):
+    def __init__(self, vocab_size, embed_dim, num_heads, window_size, n_blocks, positional_encoder):
         super().__init__()
         # each token directly reads off the logits for the next token from a lookup table
         # first argument = number of tokens we have,
@@ -156,26 +157,30 @@ class LongFormer(nn.Module):
         self.token_embedding_table = nn.Embedding(vocab_size, embed_dim) # Maps each word to a a vector of dimension embed_dim !
         self.positional_encoder = positional_encoder
 
-        # Self-Attention Head
+        # LongFormer Blocks
         self.blocks = nn.Sequential(
-            Block(embed_dim, num_heads),
-            Block(embed_dim, num_heads),
-            Block(embed_dim, num_heads), 
+            *[Block(embed_dim, num_heads, window_size) for _ in range(n_blocks)],
             nn.LayerNorm(embed_dim)
         )
 
         # Linear layer
         self.lm_head = nn.Linear(embed_dim, vocab_size)
 
-    def forward(self, idx, targets=None):
-        B, T = idx.shape
+    def forward(self, sequence, targets=None):
+        B, T = sequence.shape # T = sequence length
         # idx and targets are both (B,T) tensor of integers
-        tok_emb = self.token_embedding_table(idx) # (B,T,C) # C = embed_dim
-        pos_emb = self.positional_encoder(tok_emb.transpose(0, 1)).transpose(0, 1) # (B, T, C)
+        tok_emb = self.token_embedding_table(sequence) # (B, T, d) # d = embed_dim
+        pos_emb = self.positional_encoder(tok_emb.transpose(0, 1)).transpose(0, 1) # (B, T, d)
 
-        x = tok_emb + pos_emb # (B, T, C)
-        x = self.blocks(x) # Apply head of self-attention (B, T, C)
+        x = tok_emb + pos_emb # (B, T, d)
+        x = self.blocks(x) # Apply head of self-attention (B, T, d)
         logits = self.lm_head(x) # (B, T, vocab_size)
+        return logits
+        # To compute the loss, do this: 
+        # B, T, d = logits.shape
+        # logits = logits.view(B*T, d)
+        # targets = targets.view(B*T)
+        # loss = F.cross_entropy(logits, targets) 
 
         if targets is None:
             loss = None
