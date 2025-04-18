@@ -1,4 +1,4 @@
-# MVA LLMs project: LongFormer: The Long-Document Transforme
+# MVA LLMs project: LongFormer: The Long-Document Transformer
 
 This is the official code repository of the project 11: LongFormer presented for the LLMs course taught on the master's program MVA 2024/2025.
 
